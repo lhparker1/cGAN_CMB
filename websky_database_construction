@@ -1,0 +1,567 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "bLyRtTIDXz_w"
+      },
+      "source": [
+        "# Installs\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "Q3QUU0naXbGc"
+      },
+      "outputs": [],
+      "source": [
+        "!pip install git+https://github.com/msyriac/orphics"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "t3qQJUTZXuH1"
+      },
+      "outputs": [],
+      "source": [
+        "pip install healpy"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "76CW0OnHXwE9"
+      },
+      "outputs": [],
+      "source": [
+        "pip install pyfisher"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "7MQQNJ1XXyOT"
+      },
+      "outputs": [],
+      "source": [
+        "pip install pixell"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "E5Ghbo6gMg79"
+      },
+      "outputs": [],
+      "source": [
+        "!git clone https://github.com/amaurea/enlib"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "Gg6g2EKfXkid"
+      },
+      "outputs": [],
+      "source": [
+        "import healpy as hp\n",
+        "from pixell import enmap, utils, curvedsky, enplot, reproject\n",
+        "import numpy as np\n",
+        "import os\n",
+        "from scipy.interpolate import interp1d\n",
+        "import matplotlib.pyplot as plt\n",
+        "from orphics import maps, cosmology\n",
+        "\n",
+        "%matplotlib inline\n",
+        "%load_ext autoreload\n",
+        "%autoreload 2"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "wDruA-ZvX4W4"
+      },
+      "source": [
+        "# Define Dirs"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "NC36SoIjXice"
+      },
+      "outputs": [],
+      "source": [
+        "websky_dir = \"/content/drive/My Drive/websky/\"\n",
+        "websky_path = lambda x: os.path.join(websky_dir, x)\n",
+        "shape, wcs = enmap.fullsky_geometry(res=1*utils.arcmin)"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "4fLKKNTEYT_V"
+      },
+      "source": [
+        "# Only Run Once"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "ehKxfK5BX7mZ"
+      },
+      "outputs": [],
+      "source": [
+        "#%%script false --no-raise-error\n",
+        "## This only needs to be done once ..\n",
+        "## convert healpix map to CAR formated map\n",
+        "\n",
+        "lmax = 8000\n",
+        "\n",
+        "file_name = \"lensed_alm{}.fits\"\n",
+        "file_path = websky_path(file_name.format(\"\"))\n",
+        "print(file_path)\n",
+        "imap = hp.read_alm(file_path).astype(np.complex128)\n",
+        "omap = curvedsky.alm2map(imap, enmap.zeros(shape, wcs)).astype(np.float32)\n",
+        "enmap.write_map(websky_path(\"lensed_car.fits\"), omap)"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "pug1elgUZlPT"
+      },
+      "outputs": [],
+      "source": [
+        "del imap, omap"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "3QeJb_JrZwfE"
+      },
+      "outputs": [],
+      "source": [
+        "shape, wcs = enmap.fullsky_geometry(res=1*utils.arcmin)\n",
+        "for file_name in [\"kap{}.fits\", \"ksz{}.fits\", \"tsz{}.fits\"]:\n",
+        "    file_path = websky_path(file_name.format(\"\"))\n",
+        "    imap = hp.read_map(file_path)\n",
+        "    omap = reproject.enmap_from_healpix(imap, shape, wcs, rot=None, lmax=lmax).astype(np.float32)\n",
+        "    enmap.write_map(websky_path(file_name.format(\"_car\")), omap[0])\n",
+        "    del imap, omap"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "opWDz7yubxEW"
+      },
+      "outputs": [],
+      "source": [
+        "file_name = \"tsz_4096{}.fits\"\n",
+        "file_path = websky_path(file_name.format(\"\"))\n",
+        "imap = hp.read_map(file_path)\n",
+        "omap = reproject.enmap_from_healpix(imap, shape, wcs, rot=None, lmax=lmax).astype(np.float32)\n",
+        "enmap.write_map(websky_path(file_name.format(\"_car\")), omap[0])\n",
+        "del imap, omap"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "4A7SDXJ9YW9j"
+      },
+      "source": [
+        "# Borrowed Code"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "Fn7vSG0mYVlf"
+      },
+      "outputs": [],
+      "source": [
+        "## borrowed code\n",
+        "\n",
+        "omegab = 0.049\n",
+        "### cosmology\n",
+        "omegac = 0.261\n",
+        "omegam = omegab + omegac\n",
+        "h      = 0.68\n",
+        "ns     = 0.965\n",
+        "sigma8 = 0.81\n",
+        "\n",
+        "c = 3e5\n",
+        "\n",
+        "H0 = 100*h\n",
+        "nz = 100000\n",
+        "z1 = 0.0\n",
+        "z2 = 6.0\n",
+        "za = np.linspace(z1,z2,nz)\n",
+        "dz = za[1]-za[0]\n",
+        "\n",
+        "H      = lambda z: H0*np.sqrt(omegam*(1+z)**3+1-omegam)\n",
+        "dchidz = lambda z: c/H(z)\n",
+        "\n",
+        "chia = np.cumsum(dchidz(za))*dz\n",
+        "\n",
+        "zofchi = interp1d(chia,za)\n",
+        "rho = 2.775e11*omegam*h**2 # Msun/Mpc^3\n",
+        "\n",
+        "\n",
+        "## let's project some sources\n",
+        "f = open(websky_path('halos.pksc'))\n",
+        "N=np.fromfile(f,count=3,dtype=np.int32)[0]\n",
+        "\n",
+        "# only take first five entries for testing (there are ~8e8 halos total...)\n",
+        "# comment the following line to read in all halos\n",
+        "N = 5000000\n",
+        "\n",
+        "catalog=np.fromfile(f,count=N*10,dtype=np.float32)\n",
+        "catalog=np.reshape(catalog,(N,10))\n",
+        "\n",
+        "x  = catalog[:,0];  y = catalog[:,1];  z = catalog[:,2] # Mpc (comoving)\n",
+        "vx = catalog[:,3]; vy = catalog[:,4]; vz = catalog[:,5] # km/sec\n",
+        "R  = catalog[:,6] # Mpc\n",
+        "\n",
+        "# convert to mass, comoving distance, radial velocity, redshfit, RA and DEc\n",
+        "M200m    = 4*np.pi/3.*rho*R**3        # this is M200m (mean density 200 times critical density of universe) in Msun\n",
+        "chi      = np.sqrt(x**2+y**2+z**2)    # Mpc\n",
+        "vrad     = (x*vx + y*vy + z*vz) / chi # km/sec\n",
+        "redshift = zofchi(chi)      \n",
+        "\n",
+        "# convert 3-d positions of points to angles on the sphere\n",
+        "ra, dec  = hp.vec2ang(np.column_stack((x,y,z)),lonlat=True) # in radians\n",
+        "dec *= utils.degree\n",
+        "ra *= utils.degree"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "j0Xa1CjAsmjZ"
+      },
+      "source": [
+        "# Collect Maps"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "4xbsK7BiYdW3"
+      },
+      "outputs": [],
+      "source": [
+        "cmb = enmap.read_map(websky_path(\"lensed_car.fits\"))\n",
+        "kap = enmap.read_map(websky_path(\"kap_car.fits\"))\n",
+        "ksz = enmap.read_map(websky_path(\"ksz_car.fits\"))\n",
+        "tsz = enmap.read_map(websky_path(\"tsz_4096_car.fits\"))"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "RSK9JeKfvtWG"
+      },
+      "source": [
+        "# Build Datasets"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "EZaIyuUZbEGe"
+      },
+      "source": [
+        "### CMB and Noised CMB"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "colab": {
+          "background_save": true,
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "5F0KZoxruk6e",
+        "outputId": "93a3d920-7db2-4892-a927-64b8b9b8eabd"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "0\n",
+            "5000\n",
+            "10000\n",
+            "15000\n",
+            "20000\n",
+            "25000\n",
+            "30000\n",
+            "35000\n",
+            "40000\n",
+            "45000\n"
+          ]
+        }
+      ],
+      "source": [
+        "# Define Geometry\n",
+        "width_arcmin = 256\n",
+        "px_res_arcmin = 2\n",
+        "shape = int(width_arcmin/px_res_arcmin)\n",
+        "oshape, owcs = maps.rect_geometry(width_arcmin=width_arcmin, px_res_arcmin=px_res_arcmin)\n",
+        "\n",
+        "# Initialize Maps\n",
+        "dataset_size = 10000\n",
+        "cmb_maps = np.zeros((dataset_size, shape, shape))\n",
+        "kappa_maps = np.zeros((dataset_size, shape, shape))\n",
+        "noised_maps = np.zeros((dataset_size, shape, shape))\n",
+        "\n",
+        "counter = 0\n",
+        "for i in range(0, N):\n",
+        "    if 1e13 <= M200m[i] <= 5e14:\n",
+        "        if 0.47 <= redshift[i] <= 0.6:\n",
+        "            if counter >= dataset_size: break\n",
+        "            if counter % 10000 == 0: print(counter)\n",
+        "\n",
+        "            # Kappa and CMB\n",
+        "            kappa_maps[counter, :, :] = reproject.thumbnails(kap, np.array([dec[i], ra[i]]), r=width_arcmin*utils.arcmin/2,res=px_res_arcmin*utils.arcmin, oshape=oshape, owcs=owcs)\n",
+        "            cmb_maps[counter, :, :] = reproject.thumbnails(cmb, np.array([dec[i], ra[i]]), r=width_arcmin*utils.arcmin/2,res=px_res_arcmin*utils.arcmin, oshape=oshape, owcs=owcs)\n",
+        "\n",
+        "            # Astrophysical Foregrounds\n",
+        "            m1 = reproject.thumbnails(tsz, np.array([dec[i], ra[i]]), r=width_arcmin*utils.arcmin/2,res=px_res_arcmin*utils.arcmin, oshape=oshape, owcs=owcs)\n",
+        "            m2 = reproject.thumbnails(ksz, np.array([dec[i], ra[i]]), r=width_arcmin*utils.arcmin/2,res=px_res_arcmin*utils.arcmin, oshape=oshape, owcs=owcs)\n",
+        "\n",
+        "            # Add together\n",
+        "            noised_maps[counter, :, :] = m1 + m2 + cmb_maps[counter, :, :]\n",
+        "\n",
+        "            counter += 1"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "colab": {
+          "background_save": true
+        },
+        "id": "N01OzMWNbSRr"
+      },
+      "outputs": [],
+      "source": [
+        "np.save(websky_dir + 'cmb256', cmb_maps)\n",
+        "np.save(websky_dir + 'kap256', kappa_maps)\n",
+        "np.save(websky_dir + 'noised256', noised_maps)"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "IYrgkWy3bS6a"
+      },
+      "source": [
+        "### Add White Noise "
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "Vl-fjh-cyUCG"
+      },
+      "outputs": [],
+      "source": [
+        "noised_maps = np.load(websky_dir + 'noised256.npy')"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "colab": {
+          "background_save": true,
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "JGp7GYd9bDWv",
+        "outputId": "90514371-983c-42f2-9482-75ebac643037"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "0\n",
+            "10000\n",
+            "20000\n",
+            "30000\n",
+            "40000\n"
+          ]
+        }
+      ],
+      "source": [
+        "# Define Geometry\n",
+        "width_arcmin = 128\n",
+        "px_res_arcmin = 1\n",
+        "shape = int(width_arcmin/px_res_arcmin)\n",
+        "oshape, owcs = maps.rect_geometry(width_arcmin=width_arcmin, px_res_arcmin=px_res_arcmin)\n",
+        "\n",
+        "noised_maps_1uk = np.zeros(noised_maps.shape)\n",
+        "noised_maps_5uk = np.zeros(noised_maps.shape)\n",
+        "\n",
+        "ell = np.arange(10000)\n",
+        "nl = cosmology.white_noise_with_atm_func(ell, 1, 0, 0, dimensionless=False) # 1 uk/arcmin\n",
+        "n5 = cosmology.white_noise_with_atm_func(ell, 5, 0, 0, dimensionless=False) # 5 uk/arcmin\n",
+        "\n",
+        "counter = 0\n",
+        "for i in range(0, N):\n",
+        "    if 1e13 <= M200m[i] <= 5e14:\n",
+        "        if 0.47 <= redshift[i] <= 0.6:\n",
+        "            if counter >= noised_maps.shape[0]: break\n",
+        "            if counter % 10000 == 0: print(counter)\n",
+        "            # Generate Noise Maps\n",
+        "            white_noise_1uk = enmap.rand_map(oshape, owcs, nl)\n",
+        "            white_noise_5uk = enmap.rand_map(oshape, owcs, n5)\n",
+        "\n",
+        "            # Combine\n",
+        "            noised_maps_1uk[counter, :, :] = noised_maps[counter, :, :] + white_noise_1uk\n",
+        "            noised_maps_5uk[counter, :, :] = noised_maps[counter, :, :] + white_noise_5uk\n",
+        "            counter += 1"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "colab": {
+          "background_save": true
+        },
+        "id": "FJ3Bfn0vwV5i"
+      },
+      "outputs": [],
+      "source": [
+        "np.save(websky_dir + 'noised_1uk256', noised_maps_1uk)\n",
+        "np.save(websky_dir + 'noised_5uk256', noised_maps_5uk)"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "APeXaPQaAqI1"
+      },
+      "source": [
+        "### Uncentered Noised Maps"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "colab": {
+          "background_save": true,
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "dk452XNKAoXh",
+        "outputId": "707a06bb-81a6-4d3f-bbf1-cde2d6dfe92c"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "0\n",
+            "10000\n",
+            "20000\n",
+            "30000\n",
+            "40000\n"
+          ]
+        }
+      ],
+      "source": [
+        "width_arcmin = 128\n",
+        "px_res_arcmin = 1\n",
+        "shape = width_arcmin*px_res_arcmin\n",
+        "\n",
+        "oshape, owcs = maps.rect_geometry(width_arcmin=width_arcmin, px_res_arcmin=px_res_arcmin)\n",
+        "\n",
+        "dataset_size = 50000\n",
+        "uncentered_maps = np.zeros((dataset_size, shape, shape))\n",
+        "kappa_uncentered = np.zeros((dataset_size, shape, shape))\n",
+        "\n",
+        "counter = 0\n",
+        "for i in range(0, N):\n",
+        "    if 1e13 <= M200m[i] <= 5e14:\n",
+        "        if 0.47 <= redshift[i] <= 0.6:\n",
+        "            if counter >= dataset_size: break\n",
+        "            if counter % 10000 == 0: print(counter)\n",
+        "\n",
+        "            # Off-centering\n",
+        "            off_center = 0.17/60                                    # off-centering coefficient of 1 arcmin\n",
+        "            dec_i = dec[i] + np.random.normal(0, 1)*off_center   # random Gaussian 0 mean 1 arcmin variance\n",
+        "            ra_i = ra[i] + np.random.normal(0, 1)*off_center     # random Gaussian 0 mean 1 arcmin variance\n",
+        "\n",
+        "            # Healpix projection\n",
+        "            uncentered_maps[counter, :, :] = reproject.thumbnails(cmb, np.array([dec_i, ra_i]), r=64*utils.arcmin,res=1*utils.arcmin, oshape=oshape, owcs=owcs)           \n",
+        "            kappa_uncentered[counter, :, :] = reproject.thumbnails(kap, np.array([dec_i, ra_i]), r=64*utils.arcmin,res=1*utils.arcmin, oshape=oshape, owcs=owcs)\n",
+        "            \n",
+        "            counter += 1"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "AqLHHrbuwcAh"
+      },
+      "outputs": [],
+      "source": [
+        "np.save(websky_dir + 'cmb_uncentered256', uncentered_maps)\n",
+        "np.save(websky_dir + 'kap_uncentered256', kappa_uncentered)"
+      ]
+    }
+  ],
+  "metadata": {
+    "colab": {
+      "collapsed_sections": [
+        "bLyRtTIDXz_w",
+        "wDruA-ZvX4W4",
+        "4fLKKNTEYT_V",
+        "4A7SDXJ9YW9j",
+        "j0Xa1CjAsmjZ",
+        "msU2ay8bvqrb",
+        "EZaIyuUZbEGe",
+        "IYrgkWy3bS6a"
+      ],
+      "machine_shape": "hm",
+      "provenance": []
+    },
+    "kernelspec": {
+      "display_name": "Python 3",
+      "name": "python3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 0
+}
